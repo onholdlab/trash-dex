@@ -71,6 +71,11 @@ header.top .sum{font-family:var(--f-mono);font-size:13px;color:var(--ink-2);font
 .note{font-size:12px;color:var(--stamp);font-weight:500}
 .chip{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--tray);color:var(--ink-2);margin-right:4px;vertical-align:1px}
 .chip.ex{background:transparent;box-shadow:inset 0 0 0 1px var(--rule)}
+.throw.armed{background:var(--stamp);color:#fff}
+.thumb.clear{image-rendering:auto;filter:none;object-fit:cover;border-radius:3px}
+.modes{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--ink-2)}
+.modes label{display:flex;align-items:center;gap:6px;padding:6px 11px;border-radius:99px;background:var(--tray);color:var(--ink);font-size:13px;cursor:pointer}
+.modes input{accent-color:var(--ink);margin:0}
 .throw{background:var(--btn);color:var(--btn-fg);border:0;border-radius:4px;padding:10px 12px;font-size:14px;font-weight:500;white-space:nowrap}
 @media (max-width:460px){
   .item{grid-template-columns:72px minmax(0,1fr)}
@@ -123,6 +128,38 @@ header.top .sum{font-family:var(--f-mono);font-size:13px;color:var(--ink-2);font
 .toast button{background:none;border:0;color:inherit;text-decoration:underline;text-underline-offset:3px;padding:0;white-space:nowrap}
 @media (prefers-reduced-motion:reduce){.item{transition:none}.entry.printing{animation:none}}
 </style>
+<style id="inapp-lock">
+/* Threads / IG / FB 內建瀏覽器：鎖住整頁，只讓 #app 內部捲動（寫法沿用 onholdlab/crossroad） */
+html,body{height:100%;overflow:hidden!important;overscroll-behavior:none}
+body{position:fixed;inset:0}
+/* 文件比畫面高 2px 並捲到 1px：App 會認為網頁不在最頂端，往下拖就不會把整個瀏覽器面板拉走 */
+html{height:calc(100% + 2px)!important}
+</style>
+<script id="inapp-lock-js">
+(function(){
+  var SKIP='button,input,textarea,select,a,label,[contenteditable]';
+  function scrollable(el){
+    for(;el&&el.nodeType===1&&el!==document.body;el=el.parentElement){
+      var y=getComputedStyle(el).overflowY;
+      if((y==='auto'||y==='scroll')&&el.scrollHeight>el.clientHeight)return true;
+    }
+    return false;
+  }
+  document.addEventListener('touchstart',function(e){
+    var t=e.target;if(t.nodeType!==1)t=t.parentElement;
+    if(t&&!t.closest(SKIP)&&!scrollable(t))e.preventDefault();
+  },{passive:false});
+  document.addEventListener('touchmove',function(e){
+    var t=e.target;if(t.nodeType!==1)t=t.parentElement;
+    if(!scrollable(t))e.preventDefault();
+  },{passive:false});
+  document.addEventListener('gesturestart',function(e){e.preventDefault();});
+  /* inapp-keep1 */
+  function keep(){if(window.scrollY<1)window.scrollTo(0,1);}
+  keep();addEventListener('load',keep);addEventListener('resize',keep);addEventListener('scroll',keep,{passive:true});
+  document.addEventListener('touchstart',keep,{passive:true,capture:true});
+})();
+</script>
 </head>
 <body>
 
@@ -176,6 +213,11 @@ header.top .sum{font-family:var(--f-mono);font-size:13px;color:var(--ink-2);font
     <img class="thumb" id="sheetImg" alt="">
     <input type="text" id="sheetName" maxlength="24" placeholder="叫它什麼？例如 手搖杯 ×2">
   </div>
+  <div class="modes" id="modeRow" role="radiogroup" aria-label="照片樣式" hidden>
+    <span>照片</span>
+    <label><input type="radio" name="pmode" id="pm-dot" value="dot" checked>點陣（看不清家裡）</label>
+    <label><input type="radio" name="pmode" id="pm-clear" value="clear">清晰</label>
+  </div>
   <div class="cats" role="radiogroup" aria-label="分類">
     <label><input type="radio" name="cat" id="cat-g" value="一般垃圾" checked>一般垃圾</label>
     <label><input type="radio" name="cat" id="cat-r" value="資源回收">資源回收</label>
@@ -212,15 +254,19 @@ function ditherCanvas(cv){
   ctx.putImageData(out,0,0);
   return cv.toDataURL('image/png');
 }
-function photoToDither(file){
+const DOT=176, CLEAR=360;
+function processPhoto(file,mode){
   return new Promise((res,rej)=>{
     const url=URL.createObjectURL(file), img=new Image();
     img.onload=()=>{
-      const cv=document.createElement('canvas'); cv.width=cv.height=S;
+      const n=mode==='clear'?CLEAR:DOT;
+      const cv=document.createElement('canvas'); cv.width=cv.height=n;
       const c=cv.getContext('2d'), m=Math.min(img.width,img.height);
-      c.fillStyle='#fff';c.fillRect(0,0,S,S);
-      c.drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,S,S);
-      URL.revokeObjectURL(url); res(ditherCanvas(cv));
+      c.fillStyle='#fff';c.fillRect(0,0,n,n);
+      c.imageSmoothingQuality='high';
+      c.drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,n,n);
+      URL.revokeObjectURL(url);
+      res(mode==='clear'?cv.toDataURL('image/jpeg',.72):ditherCanvas(cv));
     };
     img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('讀不到這張圖'))};
     img.src=url;
@@ -330,7 +376,7 @@ function render(){
   $('pending').innerHTML=pend.length?pend.map(it=>{
     const w=warnOf(it,now);
     return `<div class="item${w?' warn':''}" data-id="${it.id}">
-      <img class="thumb" src="${imgOf(it)}" alt="${esc(it.name)}">
+      <img class="thumb${it.imgMode==='clear'?' clear':''}" src="${imgOf(it)}" alt="${esc(it.name)}">
       <div class="meta">
         <span class="no">No.${pad(it.no)} · ${fmt(it.addedAt)} 進來</span>
         <span class="name">${esc(it.name)}</span>
@@ -345,7 +391,7 @@ function render(){
   $('sAvg').textContent=done.length?dur(stays.reduce((a,b)=>a+b,0)/done.length):'-';
   if(done.length){const mi=stays.indexOf(Math.max(...stays));$('sMax').textContent=`No.${pad(done[mi].no)} ${dur(stays[mi])}`}else $('sMax').textContent='-';
   $('thrown').innerHTML=done.length?done.map(it=>`<div class="entry${it.id===printId?' printing':''}">
-      <img class="thumb" src="${imgOf(it)}" alt="${esc(it.name)}">
+      <img class="thumb${it.imgMode==='clear'?' clear':''}" src="${imgOf(it)}" alt="${esc(it.name)}">
       <div>
         <div class="t1"><span>No.${pad(it.no)} ${esc(it.name)}</span><span class="stamp">已丟</span></div>
         <div class="t2">入住 ${fmt(it.addedAt)}<br>離開 ${fmt(it.thrownAt)}</div>
@@ -359,11 +405,18 @@ let lastThrown=null, toastT=0;
 const feeding=new Set();
 function toast(msg,undo){
   $('toastMsg').textContent=msg; $('toastUndo').hidden=!undo; $('toast').hidden=false;
-  clearTimeout(toastT); toastT=setTimeout(()=>{$('toast').hidden=true;lastThrown=null},5000);
+  clearTimeout(toastT); toastT=setTimeout(()=>{$('toast').hidden=true;lastThrown=null},undo?8000:4000);
 }
 $('pending').addEventListener('click',e=>{
   const id=e.target.closest('[data-throw]')?.dataset.throw; if(!id) return;
   const it=st.items.find(i=>i.id===id); if(!it||it.thrownAt||feeding.has(id)) return;
+  const btn=e.target.closest('[data-throw]');
+  if(!btn.classList.contains('armed')){
+    btn.classList.add('armed'); btn.textContent='再按一次，確定丟掉';
+    clearTimeout(btn._t); btn._t=setTimeout(()=>{btn.classList.remove('armed');btn.textContent='丟掉了'},3000);
+    return;
+  }
+  clearTimeout(btn._t);
   feeding.add(id);
   const card=e.target.closest('.item');
   const finish=()=>{
@@ -391,15 +444,26 @@ $('clearEx').addEventListener('click',()=>{
 });
 
 /* add sheet */
-let draftImg=null;
-function openSheet(img){
-  draftImg=img;
+let draftImg=null, draftFile=null, draftMode='dot';
+const PMODE_KEY='trashdex-photo-mode';
+function prefMode(){try{return localStorage.getItem(PMODE_KEY)==='clear'?'clear':'dot'}catch(e){return 'dot'}}
+function openSheet(img,file,mode){
+  draftImg=img; draftFile=file||null; draftMode=mode||'dot';
+  $('toast').hidden=true;
+  $('modeRow').hidden=!draftFile;
+  $(draftMode==='clear'?'pm-clear':'pm-dot').checked=true;
+  $('sheetImg').className='thumb'+(draftFile&&draftMode==='clear'?' clear':'');
   $('sheetImg').src=img||drawKind('bag',st.seq+11);
   $('sheetName').value=''; $('cat-g').checked=true;
   $('sheetBg').hidden=$('sheet').hidden=false;
   setTimeout(()=>$('sheetName').focus(),30);
 }
-function closeSheet(){$('sheetBg').hidden=$('sheet').hidden=true;draftImg=null}
+function closeSheet(){$('sheetBg').hidden=$('sheet').hidden=true;draftImg=null;draftFile=null}
+document.querySelectorAll('input[name=pmode]').forEach(r=>r.addEventListener('change',async()=>{
+  if(!draftFile) return; draftMode=r.value;
+  try{localStorage.setItem(PMODE_KEY,draftMode)}catch(e){}
+  try{draftImg=await processPhoto(draftFile,draftMode);$('sheetImg').src=draftImg;$('sheetImg').className='thumb'+(draftMode==='clear'?' clear':'')}catch(err){toast(err.message+'，換一張試試看',false)}
+}));
 document.querySelectorAll('input[name=cat]').forEach(r=>r.addEventListener('change',()=>{
   if(!draftImg) $('sheetImg').src=drawKind(kindFor(r.value),st.seq+11);
 }));
@@ -407,7 +471,8 @@ $('btnPhoto').addEventListener('click',()=>$('file').click());
 $('btnQuick').addEventListener('click',()=>openSheet(null));
 $('file').addEventListener('change',async e=>{
   const f=e.target.files[0]; e.target.value=''; if(!f) return;
-  try{openSheet(await photoToDither(f))}catch(err){toast(err.message+'，換一張試試看',false)}
+  const mode=prefMode();
+  try{openSheet(await processPhoto(f,mode),f,mode)}catch(err){toast(err.message+'，換一張試試看',false)}
 });
 $('sheetCancel').addEventListener('click',closeSheet);
 $('sheetBg').addEventListener('click',closeSheet);
@@ -416,8 +481,11 @@ $('sheetOk').addEventListener('click',()=>{
   const cat=document.querySelector('input[name=cat]:checked').value;
   const seq=st.seq+1;
   const it={id:'u'+Date.now(),no:seq,name:$('sheetName').value.trim()||`第 ${seq} 號`,cat,
-    img:draftImg,kind:draftImg?null:kindFor(cat),addedAt:Date.now(),thrownAt:null,example:false};
-  if(!save({items:[...st.items,it],seq})) return;
+    img:draftImg,imgMode:draftFile?draftMode:null,kind:draftImg?null:kindFor(cat),addedAt:Date.now(),thrownAt:null,example:false};
+  if(!save({items:[...st.items,it],seq})){
+    if(it.imgMode==='clear') toast('手機瀏覽器的空間不夠存這張清晰照片。改用點陣，或清除一些舊紀錄再試。',false);
+    return;
+  }
   closeSheet(); render();
   toast(`No.${pad(it.no)} 住進來了`,false);
 });
@@ -426,6 +494,5 @@ render();
 setInterval(render,60e3);
 })();
 </script>
-<script src="scroll-lock.js"></script>
 </body>
 </html>
