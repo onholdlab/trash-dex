@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>垃圾圖鑑</title>
+<meta name="description" content="拍下家裡待丟的垃圾，看它住了幾天，丟掉後印成收據收進圖鑑。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=IBM+Plex+Mono:wght@400;600&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: kitchen counter (ground) holding a "待丟" tray on the left and a thermal-receipt roll on the right; one column on phones. */
+:root{
+  --ground:#d5d9d6;      /* 流理台灰 */
+  --tray:#e4e7e4;        /* 待丟區底 */
+  --paper:#f6f7f5;       /* 感熱紙 */
+  --ink:#24232b;         /* 感熱墨 */
+  --ink-2:#64636c;       /* 淡墨 */
+  --rule:#b9bcbb;
+  --stamp:#c2352c;       /* 統一發票紅，只用在「已丟」與警示 */
+  --warn-bg:#f3dcd8;
+  --btn:#24232b; --btn-fg:#f6f7f5;
+  --f-body:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono","Noto Sans TC",ui-monospace,Menlo,monospace;
+  --f-dot:"DotGothic16","IBM Plex Mono",ui-monospace,monospace;
+  --img-filter:none;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --ground:#151619;--tray:#1e2023;--paper:#26282c;--ink:#e7e7e1;--ink-2:#9c9ca3;--rule:#45474c;
+  --stamp:#ff6b5e;--warn-bg:#3d2522;--btn:#e7e7e1;--btn-fg:#151619;--img-filter:invert(1);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --ground:#151619;--tray:#1e2023;--paper:#26282c;--ink:#e7e7e1;--ink-2:#9c9ca3;--rule:#45474c;
+  --stamp:#ff6b5e;--warn-bg:#3d2522;--btn:#e7e7e1;--btn-fg:#151619;--img-filter:invert(1);color-scheme:dark}
+
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;overflow:hidden;overscroll-behavior:none}
+body{background:var(--ground);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55}
+#app{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:calc(20px + env(safe-area-inset-top,0px)) calc(96px + env(safe-area-inset-bottom,0px))}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,label:focus-within{outline:2px solid var(--stamp);outline-offset:2px}
+
+.wrap{max-width:1040px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start}
+@media (max-width:820px){.wrap{grid-template-columns:minmax(0,1fr)}}
+
+header.top{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 20px}
+header.top h1{margin:0;font-size:26px;font-weight:700;letter-spacing:.02em;text-wrap:balance}
+header.top .sum{font-family:var(--f-mono);font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.examples{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13px;color:var(--ink-2)}
+.examples button{background:none;border:0;padding:0;text-decoration:underline;text-underline-offset:3px;color:var(--ink)}
+
+/* 待丟 tray */
+.tray{background:var(--tray);border-radius:6px;padding:18px 18px 22px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.tray-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.tray-head h2{margin:0;font-size:15px;font-weight:700;letter-spacing:.08em}
+.add-row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{background:var(--btn);color:var(--btn-fg);border:0;border-radius:4px;padding:9px 14px;font-weight:500;font-size:14px}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink)}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{display:grid;grid-template-columns:88px minmax(0,1fr) auto;gap:14px;align-items:center;background:var(--paper);border-radius:4px;padding:10px 12px 10px 10px;
+  transform-origin:top center;transition:transform .45s cubic-bezier(.6,0,.8,.4),opacity .45s}
+.item.feeding{transform:translateY(-14px) scaleY(.02);opacity:0}
+.item.warn{background:linear-gradient(90deg,var(--warn-bg),var(--paper) 70%)}
+.thumb{width:88px;height:88px;image-rendering:pixelated;filter:var(--img-filter);display:block}
+.meta{min-width:0;display:flex;flex-direction:column;gap:2px}
+.meta .name{font-weight:500;overflow-wrap:anywhere}
+.meta .no{font-family:var(--f-mono);font-size:12px;color:var(--ink-2)}
+.dur{font-family:var(--f-dot);font-size:26px;line-height:1.1;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.dur small{font-family:var(--f-body);font-size:12px;color:var(--ink-2);margin-right:4px;letter-spacing:0}
+.note{font-size:12px;color:var(--stamp);font-weight:500}
+.chip{display:inline-block;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--tray);color:var(--ink-2);margin-right:4px;vertical-align:1px}
+.chip.ex{background:transparent;box-shadow:inset 0 0 0 1px var(--rule)}
+.throw{background:var(--btn);color:var(--btn-fg);border:0;border-radius:4px;padding:10px 12px;font-size:14px;font-weight:500;white-space:nowrap}
+@media (max-width:460px){
+  .item{grid-template-columns:72px minmax(0,1fr)}
+  .thumb{width:72px;height:72px}
+  .throw{grid-column:1/-1}
+}
+.empty{padding:28px 6px;color:var(--ink-2);font-size:14px}
+
+/* receipt roll */
+.roll{min-width:0;position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}
+@media (max-width:820px){.roll{position:static}}
+.receipt{background:var(--paper);font-family:var(--f-mono);font-size:12.5px;padding:22px 20px 30px;font-variant-numeric:tabular-nums;
+  --z:8px;
+  -webkit-mask:linear-gradient(#000,#000) top/100% calc(100% - var(--z)) no-repeat,
+    conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) bottom/calc(var(--z)*2) var(--z) repeat-x;
+  mask:linear-gradient(#000,#000) top/100% calc(100% - var(--z)) no-repeat,
+    conic-gradient(from -45deg at bottom,#0000,#000 1deg 89deg,#0000 90deg) bottom/calc(var(--z)*2) var(--z) repeat-x}
+.receipt .hd{text-align:center;display:flex;flex-direction:column;gap:2px}
+.receipt .hd b{font-family:var(--f-body);font-size:17px;letter-spacing:.3em;font-weight:700}
+.dash{border:0;border-top:1px dashed var(--ink-2);margin:12px 0}
+.kv{display:flex;justify-content:space-between;gap:10px}
+.kv span:last-child{text-align:right}
+.entries{display:flex;flex-direction:column}
+.entry{display:grid;grid-template-columns:56px minmax(0,1fr);gap:10px;padding:10px 0;border-bottom:1px dashed var(--rule)}
+.entry:last-child{border-bottom:0}
+.entry .thumb{width:56px;height:56px}
+.entry .t1{display:flex;justify-content:space-between;gap:8px;font-family:var(--f-body);font-size:13.5px;font-weight:500}
+.entry .t1 span{overflow-wrap:anywhere;min-width:0}
+.entry .t2{color:var(--ink-2);font-size:11.5px}
+.entry .stay{font-weight:600}
+.entry.printing{animation:print 900ms steps(14) both}
+@keyframes print{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0 0 0 0)}}
+.stamp{color:var(--stamp);font-family:var(--f-body);font-weight:700;font-size:11px;letter-spacing:.1em;border-radius:2px;box-shadow:inset 0 0 0 1.5px var(--stamp);padding:0 4px;white-space:nowrap;align-self:start}
+.foot{text-align:center;color:var(--ink-2);margin-top:14px}
+
+/* sheet + toast */
+.sheet-bg{position:fixed;inset:0;background:color-mix(in srgb,var(--ink) 35%,transparent);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--paper);border-radius:10px 10px 0 0;
+  padding:20px max(20px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(20px,env(safe-area-inset-left,0px));
+  display:flex;flex-direction:column;gap:14px;max-width:560px;margin:0 auto}
+.sheet h3{margin:0;font-size:16px}
+.sheet .row{display:flex;gap:14px;align-items:center}
+.sheet input[type=text]{flex:1;min-width:0;font:inherit;padding:9px 10px;border:0;border-radius:4px;background:var(--tray);color:var(--ink)}
+.cats{display:flex;gap:8px;flex-wrap:wrap}
+.cats label{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:99px;background:var(--tray);font-size:14px;cursor:pointer}
+.cats input{accent-color:var(--ink);margin:0}
+.sheet .actions{display:flex;gap:10px;justify-content:flex-end}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--btn);color:var(--btn-fg);
+  border-radius:6px;padding:10px 14px;display:flex;gap:14px;align-items:center;font-size:14px;max-width:calc(100% - 32px)}
+.toast button{background:none;border:0;color:inherit;text-decoration:underline;text-underline-offset:3px;padding:0;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){.item{transition:none}.entry.printing{animation:none}}
+</style>
+</head>
+<body>
+
+<div id="app">
+<div class="wrap">
+  <header class="top">
+    <h1>垃圾圖鑑</h1>
+    <div class="sum" id="sum"></div>
+  </header>
+  <div class="examples" id="exBar" hidden>
+    <span>現在顯示的是範例資料，你拍的會跟它們放在一起。</span>
+    <button type="button" id="clearEx">清除範例</button>
+  </div>
+
+  <section class="tray" aria-labelledby="h-pending">
+    <div class="tray-head">
+      <h2 id="h-pending">家中待丟</h2>
+      <div class="add-row">
+        <button type="button" class="btn" id="btnPhoto">拍一件</button>
+        <button type="button" class="btn ghost" id="btnQuick">不拍，直接記</button>
+      </div>
+    </div>
+    <div class="list" id="pending"></div>
+  </section>
+
+  <aside class="roll" aria-labelledby="h-roll">
+    <div class="receipt">
+      <div class="hd">
+        <b id="h-roll">丟棄明細</b>
+        <span>ONHOLDLAB · 垃圾圖鑑</span>
+      </div>
+      <hr class="dash">
+      <div class="kv"><span>已丟件數</span><span id="sCount">0</span></div>
+      <div class="kv"><span>平均在家停留</span><span id="sAvg">-</span></div>
+      <div class="kv"><span>最久紀錄</span><span id="sMax">-</span></div>
+      <hr class="dash">
+      <div class="entries" id="thrown"></div>
+      <hr class="dash">
+      <div class="foot">感謝您把它帶下樓<br>© 2026 onholdlab</div>
+    </div>
+  </aside>
+</div>
+</div>
+
+<input type="file" id="file" accept="image/*" capture="environment" hidden>
+
+<div class="sheet-bg" id="sheetBg" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+  <h3 id="sheetTitle">放進待丟區</h3>
+  <div class="row">
+    <img class="thumb" id="sheetImg" alt="">
+    <input type="text" id="sheetName" maxlength="24" placeholder="叫它什麼？例如 手搖杯 ×2">
+  </div>
+  <div class="cats" role="radiogroup" aria-label="分類">
+    <label><input type="radio" name="cat" id="cat-g" value="一般垃圾" checked>一般垃圾</label>
+    <label><input type="radio" name="cat" id="cat-r" value="資源回收">資源回收</label>
+    <label><input type="radio" name="cat" id="cat-f" value="廚餘">廚餘</label>
+  </div>
+  <div class="actions">
+    <button type="button" class="btn ghost" id="sheetCancel">取消</button>
+    <button type="button" class="btn" id="sheetOk">先放著</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" hidden><span id="toastMsg"></span><button type="button" id="toastUndo">復原</button></div>
+
+<script>
+(()=>{
+const KEY='trashdex-v1', H=3600e3, D=24*H, S=96;
+const $=id=>document.getElementById(id);
+
+/* ---------- dithering (Atkinson) → 1-bit PNG, ink pixels on transparent ---------- */
+function ditherCanvas(cv){
+  const ctx=cv.getContext('2d'), w=cv.width, h=cv.height, im=ctx.getImageData(0,0,w,h), d=im.data;
+  const g=new Float32Array(w*h);
+  for(let i=0;i<w*h;i++) g[i]=d[i*4]*.299+d[i*4+1]*.587+d[i*4+2]*.114;
+  const sorted=Array.from(g).sort((a,b)=>a-b), lo=sorted[Math.floor(w*h*.03)], hi=sorted[Math.floor(w*h*.97)];
+  const span=Math.max(24,hi-lo);
+  for(let i=0;i<g.length;i++) g[i]=Math.min(255,Math.max(0,(g[i]-lo)/span*255));
+  const out=ctx.createImageData(w,h), o=out.data;
+  const push=(x,y,e)=>{if(x>=0&&x<w&&y<h) g[y*w+x]+=e};
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const i=y*w+x, old=g[i], nw=old<128?0:255, e=(old-nw)/8;
+    if(nw===0){o[i*4]=30;o[i*4+1]=29;o[i*4+2]=36;o[i*4+3]=255}
+    push(x+1,y,e);push(x+2,y,e);push(x-1,y+1,e);push(x,y+1,e);push(x+1,y+1,e);push(x,y+2,e);
+  }
+  ctx.putImageData(out,0,0);
+  return cv.toDataURL('image/png');
+}
+function photoToDither(file){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file), img=new Image();
+    img.onload=()=>{
+      const cv=document.createElement('canvas'); cv.width=cv.height=S;
+      const c=cv.getContext('2d'), m=Math.min(img.width,img.height);
+      c.fillStyle='#fff';c.fillRect(0,0,S,S);
+      c.drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,S,S);
+      URL.revokeObjectURL(url); res(ditherCanvas(cv));
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('讀不到這張圖'))};
+    img.src=url;
+  });
+}
+/* placeholder drawings for examples / no-photo entries */
+function drawKind(kind,seed){
+  const cv=document.createElement('canvas'); cv.width=cv.height=S;
+  const c=cv.getContext('2d'); let r=seed||1; const rnd=()=>((r=(r*16807)%2147483647)/2147483647);
+  const bg=c.createLinearGradient(0,0,0,S); bg.addColorStop(0,'#f6f6f6'); bg.addColorStop(1,'#dadada');
+  c.fillStyle=bg;c.fillRect(0,0,S,S);
+  c.fillStyle='rgba(0,0,0,.25)';c.beginPath();c.ellipse(S/2,S*.86,S*.34,S*.07,0,0,7);c.fill();
+  const shade=(x0,x1,a,b)=>{const g=c.createLinearGradient(x0,0,x1,0);g.addColorStop(0,a);g.addColorStop(1,b);return g};
+  if(kind==='cup'){
+    for(const [dx,s] of [[-14,.9],[12,1]]){
+      const cx=S/2+dx, top=S*.28, bot=S*.84, wt=22*s, wb=16*s;
+      c.fillStyle=shade(cx-wt,cx+wt,'#5e5e5e','#cfcfcf');
+      c.beginPath();c.moveTo(cx-wt,top);c.lineTo(cx+wt,top);c.lineTo(cx+wb,bot);c.lineTo(cx-wb,bot);c.fill();
+      c.fillStyle='#555';c.fillRect(cx-wt,top+ (bot-top)*.55,wt*2,4);
+      c.fillStyle='#777';c.fillRect(cx-wt-2,top-4,wt*2+4,6);
+      c.strokeStyle='#333';c.lineWidth=4;c.beginPath();c.moveTo(cx+3,top-2);c.lineTo(cx+9,top-26);c.stroke();
+    }
+  }else if(kind==='box'){
+    c.fillStyle=shade(14,82,'#5a5a5a','#c8c8c8');c.fillRect(14,38,68,40);
+    c.fillStyle='#9a9a9a';c.beginPath();c.moveTo(14,38);c.lineTo(28,26);c.lineTo(96-14,26);c.lineTo(82,38);c.fill();
+    c.fillStyle='#666';c.fillRect(14,50,68,3);
+    c.strokeStyle='#444';c.lineWidth=2;c.strokeRect(36,30,24,6);
+  }else if(kind==='bottle'){
+    c.fillStyle=shade(30,66,'#4e4e4e','#c4c4c4');
+    c.beginPath();c.roundRect(32,36,32,50,8);c.fill();
+    c.fillRect(41,20,14,18);c.fillStyle='#444';c.fillRect(40,14,16,8);
+    c.fillStyle='#666';c.fillRect(32,52,32,12);
+  }else if(kind==='peel'){
+    for(let k=0;k<5;k++){
+      c.fillStyle=k%2?'#8a8a8a':'#cfcfcf';c.beginPath();
+      const a=rnd()*6.28;c.ellipse(30+rnd()*36,46+rnd()*28,20,8,a,0,7);c.fill();
+    }
+  }else{ /* bag */
+    c.fillStyle=shade(16,80,'#7c7c7c','#e6e6e6');
+    c.beginPath();c.moveTo(48,26);c.bezierCurveTo(90,30,92,84,70,86);c.lineTo(26,86);c.bezierCurveTo(4,84,8,30,48,26);c.fill();
+    c.fillStyle='#5a5a5a';c.beginPath();c.moveTo(40,28);c.lineTo(30,10);c.lineTo(46,24);c.lineTo(52,24);c.lineTo(66,10);c.lineTo(56,28);c.fill();
+    c.strokeStyle='rgba(0,0,0,.35)';c.lineWidth=2;
+    for(let k=0;k<4;k++){c.beginPath();const x=26+rnd()*44;c.moveTo(x,40+rnd()*10);c.quadraticCurveTo(x+8,60,x-4,80);c.stroke()}
+  }
+  const im=c.getImageData(0,0,S,S);for(let i=0;i<im.data.length;i+=4){const n=(rnd()-.5)*28;im.data[i]+=n;im.data[i+1]+=n;im.data[i+2]+=n}
+  c.putImageData(im,0,0);
+  return ditherCanvas(cv);
+}
+const kindFor=cat=>cat==='廚餘'?'peel':cat==='資源回收'?'bottle':'bag';
+
+/* ---------- state ---------- */
+function examples(){
+  const now=Date.now(), ex=[
+    ['外送袋（兩天份）','一般垃圾','bag',4*D+2*H,null],
+    ['手搖杯 ×2','資源回收','cup',2*D+1*H,null],
+    ['果皮','廚餘','peel',1*D+3*H,null],
+    ['便當盒','一般垃圾','box',9*D,5*D+20*H],
+    ['寶特瓶 ×3','資源回收','bottle',8*D,4*D],
+    ['一般垃圾（半袋）','一般垃圾','bag',7*D,6*D+16*H],
+    ['手搖杯','資源回收','cup',5*D,3*D+2*H],
+    ['菜葉','廚餘','peel',4*D+5*H,3*D+22*H],
+  ];
+  const sorted=ex.slice().sort((a,b)=>b[3]-a[3]);
+  return sorted.map((e,i)=>({id:'ex'+i,no:i+1,name:e[0],cat:e[1],img:null,kind:e[2],
+    addedAt:now-e[3],thrownAt:e[4]==null?null:now-e[4],example:true}));
+}
+let st;
+function load(){
+  try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&Array.isArray(s.items)) return s}catch(e){}
+  const items=examples(); return {items,seq:items.length};
+}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
+st=load();
+const imgCache={};
+function imgOf(it){
+  if(it.img) return it.img;
+  const k=it.id; if(!imgCache[k]) imgCache[k]=drawKind(it.kind||kindFor(it.cat),(it.no*7919)%2147483646+1);
+  return imgCache[k];
+}
+
+/* ---------- formatting ---------- */
+const pad=n=>String(n).padStart(2,'0');
+function dur(ms){
+  ms=Math.max(0,ms); const d=Math.floor(ms/D), h=Math.floor(ms%D/H), m=Math.floor(ms%H/60e3);
+  return d>0?`${d}天${pad(h)}時`:`${h}時${pad(m)}分`;
+}
+const fmt=t=>{const x=new Date(t);return `${pad(x.getMonth()+1)}/${pad(x.getDate())} ${pad(x.getHours())}:${pad(x.getMinutes())}`};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function warnOf(it,now){
+  const a=now-it.addedAt;
+  if(it.cat==='廚餘'&&a>D) return '廚餘放超過一天了';
+  if(a>3*D) return '住超過三天了';
+  return '';
+}
+
+/* ---------- render ---------- */
+let printId=null;
+function render(){
+  const now=Date.now();
+  const pend=st.items.filter(i=>!i.thrownAt).sort((a,b)=>a.addedAt-b.addedAt);
+  const done=st.items.filter(i=>i.thrownAt).sort((a,b)=>b.thrownAt-a.thrownAt);
+  $('exBar').hidden=!st.items.some(i=>i.example);
+  $('sum').textContent=pend.length?`待丟 ${pend.length} 件 · 最久 ${dur(now-pend[0].addedAt)}`:'家裡沒有待丟的東西';
+  $('pending').innerHTML=pend.length?pend.map(it=>{
+    const w=warnOf(it,now);
+    return `<div class="item${w?' warn':''}" data-id="${it.id}">
+      <img class="thumb" src="${imgOf(it)}" alt="${esc(it.name)}">
+      <div class="meta">
+        <span class="no">No.${pad(it.no)} · ${fmt(it.addedAt)} 進來</span>
+        <span class="name">${esc(it.name)}</span>
+        <span><span class="chip">${it.cat}</span>${it.example?'<span class="chip ex">範例</span>':''}</span>
+        <span class="dur"><small>住了</small>${dur(now-it.addedAt)}</span>
+        ${w?`<span class="note">${w}</span>`:''}
+      </div>
+      <button type="button" class="throw" data-throw="${it.id}">丟掉了</button>
+    </div>`}).join(''):`<div class="empty">家裡目前沒有待丟的東西。下次垃圾出現時，按「拍一件」把它記下來。</div>`;
+  const stays=done.map(i=>i.thrownAt-i.addedAt);
+  $('sCount').textContent=done.length+' 件';
+  $('sAvg').textContent=done.length?dur(stays.reduce((a,b)=>a+b,0)/done.length):'-';
+  if(done.length){const mi=stays.indexOf(Math.max(...stays));$('sMax').textContent=`No.${pad(done[mi].no)} ${dur(stays[mi])}`}else $('sMax').textContent='-';
+  $('thrown').innerHTML=done.length?done.map(it=>`<div class="entry${it.id===printId?' printing':''}">
+      <img class="thumb" src="${imgOf(it)}" alt="${esc(it.name)}">
+      <div>
+        <div class="t1"><span>No.${pad(it.no)} ${esc(it.name)}</span><span class="stamp">已丟</span></div>
+        <div class="t2">入住 ${fmt(it.addedAt)}<br>離開 ${fmt(it.thrownAt)}</div>
+        <div class="t2">${it.cat}${it.example?' · 範例':''} · 住了 <span class="stay">${dur(it.thrownAt-it.addedAt)}</span></div>
+      </div></div>`).join(''):`<div class="t2" style="padding:8px 0">還沒有丟棄紀錄。丟掉第一件後，它會印在這裡。</div>`;
+  printId=null;
+}
+
+/* ---------- actions ---------- */
+let lastThrown=null, toastT=0;
+function toast(msg,undo){
+  $('toastMsg').textContent=msg; $('toastUndo').hidden=!undo; $('toast').hidden=false;
+  clearTimeout(toastT); toastT=setTimeout(()=>{$('toast').hidden=true;lastThrown=null},5000);
+}
+$('pending').addEventListener('click',e=>{
+  const id=e.target.closest('[data-throw]')?.dataset.throw; if(!id) return;
+  const it=st.items.find(i=>i.id===id); if(!it) return;
+  const card=e.target.closest('.item');
+  const finish=()=>{
+    it.thrownAt=Date.now(); printId=it.id; lastThrown=it.id; save(); render();
+    toast(`No.${pad(it.no)} 離開了，在家住了 ${dur(it.thrownAt-it.addedAt)}`,true);
+  };
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return finish();
+  card.classList.add('feeding'); setTimeout(finish,460);
+});
+$('toastUndo').addEventListener('click',()=>{
+  const it=st.items.find(i=>i.id===lastThrown); if(it){it.thrownAt=null;save();render()}
+  $('toast').hidden=true; lastThrown=null;
+});
+$('clearEx').addEventListener('click',()=>{
+  st.items=st.items.filter(i=>!i.example);
+  st.seq=st.items.reduce((m,i)=>Math.max(m,i.no),0);
+  save(); render();
+});
+
+/* add sheet */
+let draftImg=null;
+function openSheet(img){
+  draftImg=img;
+  $('sheetImg').src=img||drawKind('bag',st.seq+11);
+  $('sheetName').value=''; $('cat-g').checked=true;
+  $('sheetBg').hidden=$('sheet').hidden=false;
+  setTimeout(()=>$('sheetName').focus(),30);
+}
+function closeSheet(){$('sheetBg').hidden=$('sheet').hidden=true;draftImg=null}
+document.querySelectorAll('input[name=cat]').forEach(r=>r.addEventListener('change',()=>{
+  if(!draftImg) $('sheetImg').src=drawKind(kindFor(r.value),st.seq+11);
+}));
+$('btnPhoto').addEventListener('click',()=>$('file').click());
+$('btnQuick').addEventListener('click',()=>openSheet(null));
+$('file').addEventListener('change',async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{openSheet(await photoToDither(f))}catch(err){toast(err.message+'，換一張試試看',false)}
+});
+$('sheetCancel').addEventListener('click',closeSheet);
+$('sheetBg').addEventListener('click',closeSheet);
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('sheet').hidden)closeSheet()});
+$('sheetOk').addEventListener('click',()=>{
+  const cat=document.querySelector('input[name=cat]:checked').value;
+  st.seq+=1;
+  const it={id:'u'+Date.now(),no:st.seq,name:$('sheetName').value.trim()||`第 ${st.seq} 號`,cat,
+    img:draftImg,kind:draftImg?null:kindFor(cat),addedAt:Date.now(),thrownAt:null,example:false};
+  st.items.push(it); save(); closeSheet(); render();
+  toast(`No.${pad(it.no)} 住進來了`,false);
+});
+
+render();
+setInterval(render,60e3);
+})();
+</script>
+<script src="scroll-lock.js"></script>
+</body>
+</html>
