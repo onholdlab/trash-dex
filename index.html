@@ -292,7 +292,10 @@ function load(){
   try{const s=JSON.parse(localStorage.getItem(KEY)); if(s&&Array.isArray(s.items)) return s}catch(e){}
   const items=examples(); return {items,seq:items.length};
 }
-function save(){try{localStorage.setItem(KEY,JSON.stringify(st))}catch(e){}}
+function save(next){
+  try{localStorage.setItem(KEY,JSON.stringify(next));st=next;return true}
+  catch(e){toast('儲存失敗，變更尚未保存。請確認瀏覽器允許儲存且空間足夠，再試一次。',false);return false}
+}
 st=load();
 const imgCache={};
 function imgOf(it){
@@ -353,29 +356,38 @@ function render(){
 
 /* ---------- actions ---------- */
 let lastThrown=null, toastT=0;
+const feeding=new Set();
 function toast(msg,undo){
   $('toastMsg').textContent=msg; $('toastUndo').hidden=!undo; $('toast').hidden=false;
   clearTimeout(toastT); toastT=setTimeout(()=>{$('toast').hidden=true;lastThrown=null},5000);
 }
 $('pending').addEventListener('click',e=>{
   const id=e.target.closest('[data-throw]')?.dataset.throw; if(!id) return;
-  const it=st.items.find(i=>i.id===id); if(!it) return;
+  const it=st.items.find(i=>i.id===id); if(!it||it.thrownAt||feeding.has(id)) return;
+  feeding.add(id);
   const card=e.target.closest('.item');
   const finish=()=>{
-    it.thrownAt=Date.now(); printId=it.id; lastThrown=it.id; save(); render();
-    toast(`No.${pad(it.no)} 離開了，在家住了 ${dur(it.thrownAt-it.addedAt)}`,true);
+    feeding.delete(id);
+    if(!st.items.some(i=>i.id===id&&!i.thrownAt)) return;
+    const thrownAt=Date.now();
+    if(!save({...st,items:st.items.map(i=>i.id===id?{...i,thrownAt}:i)})){render();return}
+    printId=id; lastThrown=id; render();
+    toast(`No.${pad(it.no)} 離開了，在家住了 ${dur(thrownAt-it.addedAt)}`,true);
   };
   if(matchMedia('(prefers-reduced-motion: reduce)').matches) return finish();
   card.classList.add('feeding'); setTimeout(finish,460);
 });
 $('toastUndo').addEventListener('click',()=>{
-  const it=st.items.find(i=>i.id===lastThrown); if(it){it.thrownAt=null;save();render()}
+  const it=st.items.find(i=>i.id===lastThrown);
+  if(it){
+    if(!save({...st,items:st.items.map(i=>i.id===it.id?{...i,thrownAt:null}:i)})) return;
+    render();
+  }
   $('toast').hidden=true; lastThrown=null;
 });
 $('clearEx').addEventListener('click',()=>{
-  st.items=st.items.filter(i=>!i.example);
-  st.seq=st.items.reduce((m,i)=>Math.max(m,i.no),0);
-  save(); render();
+  const items=st.items.filter(i=>!i.example);
+  if(save({items,seq:items.reduce((m,i)=>Math.max(m,i.no),0)})) render();
 });
 
 /* add sheet */
@@ -402,10 +414,11 @@ $('sheetBg').addEventListener('click',closeSheet);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('sheet').hidden)closeSheet()});
 $('sheetOk').addEventListener('click',()=>{
   const cat=document.querySelector('input[name=cat]:checked').value;
-  st.seq+=1;
-  const it={id:'u'+Date.now(),no:st.seq,name:$('sheetName').value.trim()||`第 ${st.seq} 號`,cat,
+  const seq=st.seq+1;
+  const it={id:'u'+Date.now(),no:seq,name:$('sheetName').value.trim()||`第 ${seq} 號`,cat,
     img:draftImg,kind:draftImg?null:kindFor(cat),addedAt:Date.now(),thrownAt:null,example:false};
-  st.items.push(it); save(); closeSheet(); render();
+  if(!save({items:[...st.items,it],seq})) return;
+  closeSheet(); render();
   toast(`No.${pad(it.no)} 住進來了`,false);
 });
 
