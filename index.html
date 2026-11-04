@@ -160,7 +160,7 @@ html{height:calc(100% + 2px)!important}
   document.addEventListener('touchstart',keep,{passive:true,capture:true});
 })();
 </script>
-</head>
+<script src="locale.js"></script></head>
 <body>
 
 <div id="app">
@@ -379,7 +379,7 @@ function render(){
       <img class="thumb${it.imgMode==='clear'?' clear':''}" src="${imgOf(it)}" alt="${esc(it.name)}">
       <div class="meta">
         <span class="no">No.${pad(it.no)} · ${fmt(it.addedAt)} 進來</span>
-        <span class="name">${esc(it.name)}</span>
+        <span class="name" ${it.example?'':'data-user-content'}>${esc(it.name)}</span>
         <span><span class="chip">${it.cat}</span>${it.example?'<span class="chip ex">範例</span>':''}</span>
         <span class="dur"><small>住了</small>${dur(now-it.addedAt)}</span>
         ${w?`<span class="note">${w}</span>`:''}
@@ -393,7 +393,7 @@ function render(){
   $('thrown').innerHTML=done.length?done.map(it=>`<div class="entry${it.id===printId?' printing':''}">
       <img class="thumb${it.imgMode==='clear'?' clear':''}" src="${imgOf(it)}" alt="${esc(it.name)}">
       <div>
-        <div class="t1"><span>No.${pad(it.no)} ${esc(it.name)}</span><span class="stamp">已丟</span></div>
+        <div class="t1"><span ${it.example?'':'data-user-content'}>No.${pad(it.no)} ${esc(it.name)}</span><span class="stamp">已丟</span></div>
         <div class="t2">入住 ${fmt(it.addedAt)}<br>離開 ${fmt(it.thrownAt)}</div>
         <div class="t2">${it.cat}${it.example?' · 範例':''} · 住了 <span class="stay">${dur(it.thrownAt-it.addedAt)}</span></div>
       </div></div>`).join(''):`<div class="t2" style="padding:8px 0">還沒有丟棄紀錄。丟掉第一件後，它會印在這裡。</div>`;
