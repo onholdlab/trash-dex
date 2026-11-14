@@ -19,8 +19,8 @@ jobs:
       - name: harness 自我測試
         run: node --test .github/scripts/harness.test.mjs
       - run: npm i --no-save @playwright/test@1.56.1 playwright@1.56.1
-      - run: npx playwright install msedge
       - run: node --test
+      # 既有的 regression.cjs 用 Microsoft Edge；GitHub 的 Ubuntu runner 已內建 Edge，不另外安裝
       - run: node tests/regression.cjs
       - run: npx playwright test
       # 失敗時把截圖留下來（Actions 頁面下方 Artifacts 可下載）
